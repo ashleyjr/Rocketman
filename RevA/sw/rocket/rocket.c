@@ -34,7 +34,6 @@ uint8_t uart_rx(void);
 // Main routine ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main (void){
-
 	// set up the IO pins
 
 	DDRB	|= (1<<DDB5);						         // PB5 As Output pin
@@ -44,19 +43,30 @@ int main (void){
 	PORTB	|= 1<<DDB7;							         // PB7 Activate internal pullUp resistor
 
    // Setup comms
-   i2c_init();
+   //i2c_init();
    uart_init();
    
    // Main
    
-   while(1){
-      if((UCSR0A & (1 << RXC0))){
-         LED_ON;
-         uart_rx();
-         _delay_ms (100);      
-      }else{
-         LED_OFF;
-      }
+   while(1){ 
+      //i2c_start();
+      uart_tx('A');    
+      //i2c_write(0xD9);
+      //uart_tx('D');
+      //i2c_write(0x75);
+      //uart_tx('7');
+      //uart_tx(i2c_read_ack());
+      //uart_tx('R');
+      //i2c_stop();
+      //uart_tx('s');
+      
+      //if((UCSR0A & (1 << RXC0))){
+      //   LED_ON;
+      //   uart_tx(uart_rx());
+      //   _delay_ms (100);      
+      //}else{
+      //   LED_OFF;
+      //}
       
    }
 }
@@ -91,8 +101,13 @@ void i2c_write(uint8_t data){
 }
 
 uint8_t i2c_read_ack(void){
+   uint8_t count;
    TWCR = (1<<TWINT)|(1<<TWEN)|(1<<TWEA);
-   while ((TWCR & (1<<TWINT)) == 0);
+   count = 0;
+   while (((TWCR & (1<<TWINT)) == 0) && (count < 100) ){
+      uart_tx('W');
+      count++;
+   };
    return TWDR;
 }
 
