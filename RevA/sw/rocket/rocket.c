@@ -7,6 +7,13 @@
 #define LED_ON				   PORTB |=  (1<<PORTB5)
 #define LED_OFF				PORTB &= ~(1<<PORTB5)
 
+#define TX_ON              PORTC |=  (1<<PORTC0)
+#define TX_OFF             PORTC &= ~(1<<PORTC0)
+
+#define RX_ON              PIND & (1<<PD2) 
+#define SW_ON              PINB & (1<<PB7)
+
+
 #define USART_BAUDRATE     9600
 #define BAUD_PRESCALE      (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
 
@@ -34,23 +41,52 @@ uint8_t uart_rx(void);
 // Main routine ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main (void){
-	// set up the IO pins
+	uint8_t i;
+   
+   // set up the IO pins
 
 	DDRB	|= (1<<DDB5);						         // PB5 As Output pin
 	PORTB	|= (1<<DDB5);						         // PB5 Activate internal pullUp resistor
 
 	DDRB	&= ~(1<<DDB7);						         // PB7 As Input pin
-	PORTB	|= 1<<DDB7;							         // PB7 Activate internal pullUp resistor
+	//PORTB	|= (1<<DDB7);							         // PB7 Activate internal pullUp resistor
+
+   DDRC  |= (1<<DDC0);
+   PORTC |= (1<<DDC0);
+
+   DDRD  &= ~(1<<DDD2);
+   PORTD |= (1<<DDD2);
 
    // Setup comms
    //i2c_init();
-   uart_init();
+   //uart_init();
    
    // Main
    
-   while(1){ 
+   while(1){
+      
+      // RX PIN
+      if(PIND & (1<<PD2) ){
+         LED_ON;
+      }else{
+         LED_OFF;
+      }
+      
+      // SWITCH 
+      //if(PINB & (1<<PB7) ){
+      //   _delay_us(50);
+      //   TX_ON;
+      //   _delay_us(50);
+      //   TX_OFF;
+      //}else{
+      //   _delay_us(10);
+      //   TX_ON;
+      //   _delay_us(90);
+      //   TX_OFF;
+      //}
+
       //i2c_start();
-      uart_tx('A');    
+      //uart_tx(uart_rx());    
       //i2c_write(0xD9);
       //uart_tx('D');
       //i2c_write(0x75);
