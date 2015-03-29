@@ -37,11 +37,6 @@ void uart_init(void);
 void uart_tx(uint8_t data);
 uint8_t uart_rx(void);
 
-// timer0 overflw
- ISR(TIMER0_OVF_vect) {
-     // process the timer1 overflow here
-     }
-
 void send_string(char s[]){
    int i =0;        
    while (s[i] != 0x00){
@@ -50,13 +45,28 @@ void send_string(char s[]){
    }
 }
 
+
+volatile uint8_t in_low,in_high;
+volatile int32_t max_high,high,max_low,low;
+volatile uint8_t state;
+
+// timer0 overflw
+ISR(TIMER1_COMPA_vect) {
+   if(FREQ){
+      low++;
+   }else{
+      high++;
+   } 
+}
+
+
 // Main routine ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main (void){
 	
    char buffer[20]; 
 
-   uint32_t i,high,low,period;
+   uint32_t i,low_last,high_last;
    
 
    // set up the IO pins
@@ -77,6 +87,11 @@ int main (void){
    PORTD |= (1<<DDD7);
 
 
+	DDRB	|= (1<<DDB1);						         // PB5 As Output pin
+	PORTB	|= (1<<DDB1);						         // PB5 Activate internal pullUp resistor
+
+
+
 
    // Setup comms
    //i2c_init();
@@ -84,56 +99,67 @@ int main (void){
 
    // Main
  
-   TCCR1A = (1 << WGM10) | (1 << COM0A1);
-   TCCR1B = (1 << CS20) | (1 << CS00) | (1 << WGM01);
-   DDRB = 0xFF;
-   OCR1A=200;
+   //TCCR1A = (1 << WGM10) | (1 << COM0A1);
+   //TCCR1B = (1 << CS20) | (1 << CS00) | (1 << WGM01);
+   //DDRB = 0xFF;
+   //OCR1A=150;
 
-   TIMSK0=(1<<TOIE0);
+
+   TCCR1A = 0;     // set entire TCCR1A register to 0
+   TCCR1B = 0;     // same for TCCR1B
+   
+   OCR1A = 4000;
+   // turn on CTC mode:
+   TCCR1B |= (1 << WGM12);
+   // no prescaler`
+   TCCR1B |= (1 << CS10);
+   // enable timer compare interrupt:
+   TIMSK1 |= (1 << OCIE1A);
+   
+   //TIMSK0=(1<<TOIE0);
+   //// set timer0 counter initial value to 0
+   //TCNT0=0x00;
+   //// // start timer0 with /64 prescaler
+   //TCCR0B = (1<<CS00);
    sei();
 
    while(1){
-      
-      high = 0;
-      low = 0;
      
-      if(FREQ){
-         while(FREQ){
-            _delay_us(10);
-            low+=10;
-            LED_OFF;
-         }
-      }else{
-         while(~FREQ){
-            _delay_us(10);
-            high+=10;
-            LED_ON;
-         } 
-      }
-      
+      PORTB = 0xFF;
+      _delay_ms(4);
+      PORTB = 0x00; 
+      _delay_ms(1);
 
-      if(high){ 
-         send_string("\n\n\rHigh: ");
-         itoa(high, buffer, 10);
-         send_string(buffer);
-         send_string("us");
+       
 
-         period = high;
-      }
-      if(low){
+      //if(high){ 
+         
+         low_last = low - low_last;
          send_string("\n\rLow: ");
-         itoa(low, buffer, 10);
+         itoa(low_last >> 2, buffer, 10);
+         send_string(buffer);
+         send_string("us      ");
+         low_last = low;
+
+      //   period = high;
+      //}
+      //if(low){
+         
+         high_last = high - high_last;
+         send_string("\t\tHigh: ");
+         itoa(high_last >> 2, buffer, 10);
          send_string(buffer);
          send_string("us");
-      
-         period += low;
-         send_string("\n\rPeriod: ");
-         itoa(period, buffer, 10);
-         send_string(buffer);
-         send_string("us");
-         period = 0;
-         _delay_ms(500); 
-      }
+         high_last = high;
+      //
+      //   period += low;
+      //   send_string("\n\rPeriod: ");
+      //   itoa(period, buffer, 10);
+      //   send_string(buffer);
+      //   send_string("us");
+      //   period = 0;
+      //   _delay_ms(500); 
+      //}
       
 
 
