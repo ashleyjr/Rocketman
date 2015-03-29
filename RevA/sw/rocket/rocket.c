@@ -2,6 +2,8 @@
 
 #include <avr/io.h>
 #include <util/delay.h>
+#include <stdlib.h>
+#include <avr/interrupt.h>
 
 
 #define LED_ON				   PORTB |=  (1<<PORTB5)
@@ -12,7 +14,7 @@
 
 #define RX_ON              PIND & (1<<PD2) 
 #define SW_ON              PINB & (1<<PB7)
-
+#define FREQ               PIND & (1<<PD7)
 
 #define USART_BAUDRATE     9600
 #define BAUD_PRESCALE      (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
@@ -35,21 +37,35 @@ void uart_init(void);
 void uart_tx(uint8_t data);
 uint8_t uart_rx(void);
 
+// timer0 overflw
+ ISR(TIMER0_OVF_vect) {
+     // process the timer1 overflow here
+     }
 
-
+void send_string(char s[]){
+   int i =0;        
+   while (s[i] != 0x00){
+      uart_tx(s[i]);
+      i++;
+   }
+}
 
 // Main routine ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 int main (void){
-	uint8_t i;
+	
+   char buffer[20]; 
+
+   uint32_t i,high,low,period;
    
+
    // set up the IO pins
 
 	DDRB	|= (1<<DDB5);						         // PB5 As Output pin
 	PORTB	|= (1<<DDB5);						         // PB5 Activate internal pullUp resistor
 
 	DDRB	&= ~(1<<DDB7);						         // PB7 As Input pin
-	//PORTB	|= (1<<DDB7);							         // PB7 Activate internal pullUp resistor
+	PORTB	|= (1<<DDB7);							         // PB7 Activate internal pullUp resistor
 
    DDRC  |= (1<<DDC0);
    PORTC |= (1<<DDC0);
@@ -57,21 +73,70 @@ int main (void){
    DDRD  &= ~(1<<DDD2);
    PORTD |= (1<<DDD2);
 
+   DDRD  &= ~(1<<DDD7);
+   PORTD |= (1<<DDD7);
+
+
+
    // Setup comms
    //i2c_init();
-   //uart_init();
-   
+   uart_init();
+
    // Main
-   
+ 
+   TCCR1A = (1 << WGM10) | (1 << COM0A1);
+   TCCR1B = (1 << CS20) | (1 << CS00) | (1 << WGM01);
+   DDRB = 0xFF;
+   OCR1A=200;
+
+   TIMSK0=(1<<TOIE0);
+   sei();
+
    while(1){
       
-      // RX PIN
-      if(PIND & (1<<PD2) ){
-         LED_ON;
+      high = 0;
+      low = 0;
+     
+      if(FREQ){
+         while(FREQ){
+            _delay_us(10);
+            low+=10;
+            LED_OFF;
+         }
       }else{
-         LED_OFF;
+         while(~FREQ){
+            _delay_us(10);
+            high+=10;
+            LED_ON;
+         } 
       }
       
+
+      if(high){ 
+         send_string("\n\n\rHigh: ");
+         itoa(high, buffer, 10);
+         send_string(buffer);
+         send_string("us");
+
+         period = high;
+      }
+      if(low){
+         send_string("\n\rLow: ");
+         itoa(low, buffer, 10);
+         send_string(buffer);
+         send_string("us");
+      
+         period += low;
+         send_string("\n\rPeriod: ");
+         itoa(period, buffer, 10);
+         send_string(buffer);
+         send_string("us");
+         period = 0;
+         _delay_ms(500); 
+      }
+      
+
+
       // SWITCH 
       //if(PINB & (1<<PB7) ){
       //   _delay_us(50);
