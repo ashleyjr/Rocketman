@@ -46,15 +46,21 @@ void send_string(char s[]){
 }
 
 
-volatile uint8_t count,high;
+volatile uint8_t in_low,in_high;
+volatile int32_t max_high,high,max_low,low;
+volatile uint8_t state;
 
 // timer0 overflw
 ISR(TIMER1_COMPA_vect) {
-   count++;
-   if(count > high)
-      PORTB = 0xFF;
-   else
-      PORTB = 0x00;
+   if(FREQ){
+      high = 0;
+      low++;
+   }else{
+      low = 0;
+      high++;
+   }
+   if(low) max_low = low;
+   if(high) max_high = high;
 }
 
 
@@ -64,7 +70,7 @@ int main (void){
 	
    char buffer[20]; 
 
-   uint32_t i,low_last,high_last;
+   uint32_t i,snap_low,snap_high;
    
 
    // set up the IO pins
@@ -89,9 +95,11 @@ int main (void){
 	PORTB	|= (1<<DDB1);						         // PB5 Activate internal pullUp resistor
 
 
+
+
    // Setup comms
    //i2c_init();
-   //uart_init();
+   uart_init();
 
    // Main
  
@@ -101,63 +109,111 @@ int main (void){
    //OCR1A=150;
 
 
-   //TCCR1A = 0;     // set entire TCCR1A register to 0
-   //TCCR1B = 0;     // same for TCCR1B
-   //
-   //OCR1A = 40000;
-   //// turn on CTC mode:
-   //TCCR1B |= (1 << WGM12);
-   //// no prescaler`
-   //TCCR1B |= (1 << CS10);
-   //// enable timer compare interrupt:
-   //TIMSK1 |= (1 << OCIE1A);
+   TCCR1A = 0;     // set entire TCCR1A register to 0
+   TCCR1B = 0;     // same for TCCR1B
    
-   ////TIMSK0=(1<<TOIE0);
-   ////// set timer0 counter initial value to 0
-   ////TCNT0=0x00;
-   ////// // start timer0 with /64 prescaler
-   ////TCCR0B = (1<<CS00);
-   //sei();
-
- // Setup comms
- //i2c_init();
- uart_init();
- 
- // Main
- 
- //TCCR1A = (1 << WGM10) | (1 << COM0A1);
- //TCCR1B = (1 << CS20) | (1 << CS00) | (1 << WGM01);
- //DDRB = 0xFF;
- //OCR1A=150;
- 
- 
- TCCR1A = 0;     // set entire TCCR1A register to 0
- TCCR1B = 0;     // same for TCCR1B
- 
- OCR1A = 1000;
- // turn on CTC mode:
- TCCR1B |= (1 << WGM12);
- // div by 1024
- TCCR1B |= (1 << CS12)|(1 << CS10);
- // enable timer compare interrupt:
- TIMSK1 |= (1 << OCIE1A);
- 
- //TIMSK0=(1<<TOIE0);
- //// set timer0 counter initial value to 0
- //TCNT0=0x00;
- //// // start timer0 with /64 prescaler
- //TCCR0B = (1<<CS00);
+   OCR1A = 4000;
+   // turn on CTC mode:
+   TCCR1B |= (1 << WGM12);
+   // no prescaler`
+   TCCR1B |= (1 << CS10);
+   // enable timer compare interrupt:
+   TIMSK1 |= (1 << OCIE1A);
    
+   //TIMSK0=(1<<TOIE0);
+   //// set timer0 counter initial value to 0
+   //TCNT0=0x00;
+   //// // start timer0 with /64 prescaler
+   //TCCR0B = (1<<CS00);
    sei();
 
-
    while(1){
-      high = 100;
-      _delay_ms(100);
-      high = 200;
-      _delay_ms(100);
-   }
+     
+      //PORTB = 0xFF;
+      //_delay_ms(4);
+      //PORTB = 0x00; 
+      //_delay_ms(1);
 
+       
+
+      //if(high){ 
+         
+         //low_last = low - low_last;
+         
+         send_string("\n\r");
+         while(low);
+         snap_low = max_low >> 2;
+         itoa(snap_low, buffer, 10);
+         send_string(buffer);
+        
+         send_string("\t");
+         while(high);
+         snap_high = max_high >> 2;
+         itoa(snap_high, buffer, 10);
+         send_string(buffer);
+        
+
+         
+         
+         
+         //send_string("us      ");
+         //low_last = low;
+
+      //   period = high;
+      //}
+      //if(low){
+         
+         //high_last = high - high_last;
+         //send_string("\t\tHigh: ");
+         //itoa(high, buffer, 10);
+         //send_string(buffer);
+         //send_string("us");
+         //high_last = high;
+      //
+      //   period += low;
+      //   send_string("\n\rPeriod: ");
+      //   itoa(period, buffer, 10);
+      //   send_string(buffer);
+      //   send_string("us");
+      //   period = 0;
+      //   _delay_ms(500); 
+      //}
+      
+
+
+      // SWITCH 
+      //if(PINB & (1<<PB7) ){
+      //   _delay_us(50);
+      //   TX_ON;
+      //   _delay_us(50);
+      //   TX_OFF;
+      //}else{
+      //   _delay_us(10);
+      //   TX_ON;
+      //   _delay_us(90);
+      //   TX_OFF;
+      //}
+
+      //i2c_start();
+      //uart_tx(uart_rx());    
+      //i2c_write(0xD9);
+      //uart_tx('D');
+      //i2c_write(0x75);
+      //uart_tx('7');
+      //uart_tx(i2c_read_ack());
+      //uart_tx('R');
+      //i2c_stop();
+      //uart_tx('s');
+      
+      //if((UCSR0A & (1 << RXC0))){
+      //   LED_ON;
+      //   uart_tx(uart_rx());
+      //   _delay_ms (100);      
+      //}else{
+      //   LED_OFF;
+      //}
+      
+   }
 }
 
 
